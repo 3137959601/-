@@ -297,3 +297,134 @@ PSTR2 c, d;
 ### 错误根因
 
 宏没有创造新类型；分析宏声明时应先做文本展开，再按C声明符分别解析每个变量。`typedef`更适合复杂指针和函数指针类型，因为它保留类型语义并减少声明歧义。
+
+---
+
+## CPP-D-005 指针数组、数组指针与指针运算
+
+`int *p[10]`是含10个`int *`元素的数组；`int (*q)[10]`是指向“含10个`int`的数组”的指针。若`int a[3][5]; int (*row)[5] = a;`，则`row + 1`跨过5个`int`。同数组内`&a[0][4] - &a[0][1] == 3`，单位是元素，不是字节；尾后指针可以形成但不能解引用。无关对象指针不能进行有定义的相减。
+
+---
+
+## CPP-D-006 signed/unsigned与整数提升综合辨析
+
+- 无符号整数运算按模回绕；有符号整数溢出是未定义行为。
+- `int a = -1; unsigned int b = 1;`比较时，`a`通常先转换为无符号大数，因此`a < b`为假。
+- `uint8_t a = 250, b = 10; int c = a + b;`中操作数先整数提升，所以`c == 260`；再赋给`uint8_t`时按目标无符号类型转换为4。
+- 不能把一次平台实测的`INT_MAX + 1 == INT_MIN`写成C语言保证。
+
+---
+
+## CPP-D-007 动态内存释放后的别名与重复释放
+
+`free(p); p = NULL;`只清除了变量`p`，其他别名仍然悬空。通过别名读写已释放对象是Use-After-Free，再次释放同一对象是Double Free，两者均属未定义行为；`free(NULL)`安全。根本修复是明确唯一所有者和借用者，释放时让所有可继续访问的路径失效，而不是只给一个局部变量赋`NULL`。
+
+---
+
+## CPP-D-008 数组形参与sizeof重复错题
+
+`void clear(int arr[100])`中的`arr`仍调整为`int *`，函数内`sizeof(arr)`是指针大小。修复接口：
+
+```c
+void clear(int *arr, size_t count)
+{
+    if (arr != NULL)
+        memset(arr, 0, count * sizeof arr[0]);
+}
+```
+
+调用者必须传元素数量，并保证该容量真实有效。若传的是字节数，应在接口名和参数名中明确单位，避免元素数/字节数混用。
+
+---
+
+## CPP-D-009 const volatile指针组合
+
+从标识符开始读：
+
+- `const volatile uint32_t *reg`：`reg`可改指向；不能通过它写目标；每次目标访问保留`volatile`语义。
+- `const volatile uint32_t * const reg`：在上一条基础上，指针本身也不可改。
+- `volatile uint32_t * const reg`：指针地址固定，可通过它读写目标，目标可能异步变化。
+
+`const`不取消`volatile`，`volatile`也不取消`const`；二者分别约束修改权限和访问优化。
+
+---
+
+## CPP-D-010 static缓冲区与可重入性
+
+函数内`static char buf[16]`只有一份，所有调用共享。它避免返回普通局部数组造成的悬空，但后一次调用会覆盖前一次结果，多Task并发还可能数据竞争。更稳妥的接口让调用者传入缓冲区和容量：
+
+```c
+int format_value(char *dst, size_t cap, int value);
+```
+
+这样对象生命周期、容量和并发所有权由调用者明确控制。
+
+---
+
+## CPP-D-011 条件编译#ifdef与#if
+
+```c
+#define DEBUG 0
+```
+
+`#ifdef DEBUG`判断宏是否存在，因此成立；`#if DEBUG`计算宏值，因此不成立。若配置可能未定义，使用：
+
+```c
+#if defined(DEBUG) && DEBUG
+/* debug code */
+#endif
+```
+
+项目应统一采用“定义/不定义”或“固定定义为0/1”中的一种配置风格。
+
+---
+
+## CPP-C-005 手写strlen、strcpy、memcpy与memmove
+
+```c
+size_t my_strlen(const char *s)
+{
+    size_t n = 0;
+    while (s[n] != '\0')
+        ++n;
+    return n;
+}
+
+char *my_strcpy(char *dst, const char *src)
+{
+    char *out = dst;
+    while ((*dst++ = *src++) != '\0') {
+    }
+    return out;
+}
+
+void *my_memcpy(void *dst, const void *src, size_t n)
+{
+    unsigned char *d = dst;
+    const unsigned char *s = src;
+    void *out = dst;
+    while (n--)
+        *d++ = *s++;
+    return out;
+}
+
+void *my_memmove(void *dst, const void *src, size_t n)
+{
+    unsigned char *d = dst;
+    const unsigned char *s = src;
+    void *out = dst;
+
+    if (d < s) {
+        while (n--)
+            *d++ = *s++;
+    } else if (d > s) {
+        d += n;
+        s += n;
+        while (n--)
+            *--d = *--s;
+    }
+    return out;
+}
+```
+
+检查点：`strlen`不计终止符；`strcpy`复制终止符；`memcpy`不支持重叠；所有复制函数返回原始目标地址；反向`memmove`必须先递减再解引用，不能在尾后位置直接解引用。
