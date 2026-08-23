@@ -1,4 +1,4 @@
-# C / C++
+# C
 
 > 将原始5份复习笔记中的25个知识点按原顺序独立整理，不再按“复习01—05”分组；每点只补充必要边界，详细训练答案仍放在答案库。
 
@@ -1085,12 +1085,3 @@ void *my_memmove(void *dst, const void *src, size_t n)
 - 对应练习：[CPP-C-005](./题库/训练题库.md#cpp-c-005-手写strlenstrcpymemcpy与memmove)。
 
 ---
-
-<details>
-<summary>后续C++专题（不计入本轮25个知识点）</summary>
-
-- C++对象模型：待评估；后续覆盖类、继承、多态、虚函数、虚析构与对象布局。
-- STL：学习中；后续覆盖`vector/string/map/unordered_map`、迭代器失效与复杂度选择。
-- 多线程与同步：待评估；后续覆盖线程、互斥、条件变量、原子操作与竞态诊断。
-
-</details>

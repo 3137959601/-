@@ -1,6 +1,7 @@
 # 答案与解析库
 
-- [C / C++ 答案](./C_CPP答案.md)
+- [C 答案](./C答案.md)
+- [C++ 答案](./CPP答案.md)
 - [Linux 答案](./Linux答案.md)
 - [FreeRTOS 答案](./FreeRTOS答案.md)
 - [计算机网络答案](./计算机网络答案.md)
